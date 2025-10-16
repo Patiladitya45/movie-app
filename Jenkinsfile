@@ -2,69 +2,65 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "patiladi09/movie-app"
-        KUBE_CONFIG = "C:/Users/Shree/.kube/config" 
-        
+        DOCKER_IMAGE = "patiladi09/movie-app:latest"
+        DOCKER_CREDENTIALS = "docker-hub-credentials" // Jenkins credentials ID
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/Patiladitya45/movie-app.git'
+                checkout scm
+            }
+        }
+
+        stage('Install & Test') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh "npm install && npm test"
+                    } else {
+                        bat "npm install && npm test"
+                    }
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                bat """
-                    docker build -t %IMAGE_NAME%:%IMAGE_TAG% .
-                """
-            }
-        }
-
-        stage('Login to Docker Hub') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    bat """
-                        docker logout
-                        echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
-                    """
+                script {
+                    if (isUnix()) {
+                        sh "docker build -t ${DOCKER_IMAGE} ."
+                    } else {
+                        bat "docker build -t %DOCKER_IMAGE% ."
+                    }
                 }
             }
         }
 
-        stage('Push Image to Docker Hub') {
+        stage('Push Docker Image') {
             steps {
-                bat """
-                    docker push %IMAGE_NAME%:%IMAGE_TAG%
-                """
-            }
-        }
-
-        stage('Deploy Container') {
-            steps {
-                bat """
-                    docker rm -f web-container || echo Container not running
-                    docker run -d --name web-container -p 7070:80 %IMAGE_NAME%:%IMAGE_TAG%
-                """
+                script {
+                    withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        if (isUnix()) {
+                            sh """
+                                echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                                docker push ${DOCKER_IMAGE}
+                            """
+                        } else {
+                            bat """
+                                echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                                docker push %DOCKER_IMAGE%
+                            """
+                        }
+                    }
+                }
             }
         }
     }
 
     post {
         always {
-            echo "Pipeline finished. Visit http://localhost:7070"
+            echo "Pipeline finished."
         }
     }
-}
-
-        stage('Deploy to Kubernetes') {
-           steps {
-              script {
-                    sh 'kubectl apply -f k8s/deployment.yaml'
-                    sh 'kubectl apply -f k8s/service.yaml'
-          }
-        }
-     }
-   }
 }
