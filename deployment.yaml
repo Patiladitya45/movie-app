@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: movie-app
+spec:
+replicas: 3
+selector:
+matchLabels:
+app: movie-app
+template:
+metadata:
+labels:
+app: movie-app
+spec:
+containers:
+- name: web-container
+image: patiladi09/movie-app:latest
+ports:
+- containerPort: 80
