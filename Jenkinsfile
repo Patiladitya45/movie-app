@@ -3,7 +3,8 @@ pipeline {
 
     environment {
         IMAGE_NAME = "patiladi09/movie-app"
-        IMAGE_TAG = "latest"
+        KUBE_CONFIG = "C:/Users/Shree/.kube/config" 
+        
     }
 
     stages {
@@ -55,4 +56,15 @@ pipeline {
             echo "Pipeline finished. Visit http://localhost:7070"
         }
     }
+}
+
+        stage('Deploy to Kubernetes') {
+           steps {
+              script {
+                    sh 'kubectl apply -f k8s/deployment.yaml'
+                    sh 'kubectl apply -f k8s/service.yaml'
+          }
+        }
+     }
+   }
 }
