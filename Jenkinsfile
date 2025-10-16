@@ -1,58 +1,40 @@
 pipeline {
-    agent any
-
-    environment {
-        IMAGE_NAME = "patiladi09/movie-app"
-        IMAGE_TAG = "latest"
+   agent any
+      environment {
+            DOCKER_IMAGE = "patiladi09/movie-app"
+            KUBE_CONFIG = "C:\Users\Shree\.kube/config"// Path to kubeconfig file
+          }
+            stages {
+            stage('Checkout') {
+            steps {
+            git 'https://github.com/Patiladitya45/movie-app.git'
+          }
+        }
+            stage('Build Docker Image') {
+            steps {
+            script {
+            sh 'docker build -t $DOCKER_IMAGE .'
+           }
+          }
+        }
+            stage('Push to DockerHub') {
+            steps {
+            withCredentials([usernamePassword(credentialsId: 'dockerhub-cred',
+            usernameVariable: 'DOCKER_USER', passwordVariable:
+            'DOCKER_PASS')]) {
+            sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-
+            stdin"
+            sh "docker push $DOCKER_IMAGE"
+            }
+          }
+        }
+        stage('Deploy to Kubernetes') {
+        steps {
+        script {
+        sh 'kubectl apply -f k8s/deployment.yaml'
+        sh 'kubectl apply -f k8s/service.yaml'
+        }
+      }
     }
-
-    stages {
-        stage('Checkout Code') {
-            steps {
-                git branch: 'main', url: 'https://github.com/Patiladitya45/movie-app.git'
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                bat """
-                    docker build -t %IMAGE_NAME%:%IMAGE_TAG% .
-                """
-            }
-        }
-
-        stage('Login to Docker Hub') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    bat """
-                        docker logout
-                        echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
-                    """
-                }
-            }
-        }
-
-        stage('Push Image to Docker Hub') {
-            steps {
-                bat """
-                    docker push %IMAGE_NAME%:%IMAGE_TAG%
-                """
-            }
-        }
-
-        stage('Deploy Container') {
-            steps {
-                bat """
-                    docker rm -f web-container || echo Container not running
-                    docker run -d --name web-container -p 7070:80 %IMAGE_NAME%:%IMAGE_TAG%
-                """
-            }
-        }
-    }
-
-    post {
-        always {
-            echo "Pipeline finished. Visit http://localhost:7070"
-        }
-    }
+  }
 }
