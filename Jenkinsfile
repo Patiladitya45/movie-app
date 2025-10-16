@@ -2,7 +2,8 @@ pipeline {
 agent any
 environment {
 DOCKER_IMAGE = "patiladi09/movie-app"
-KUBE_CONFIG = "C:\Users\Shree\.kube\jeJenkin\config" // Path to kubeconfig file
+KUBE_CONFIG = "C:/Users/Shree/.kube/jeJenkin/config"
+
 }
 stages {
 stage('Checkout') {
