@@ -1,66 +1,39 @@
 pipeline {
-    agent any
-
-    environment {
-        DOCKER_IMAGE = "patiladi09/movie-app:latest"
-        DOCKER_CREDENTIALS = "docker-hub-credentials" // Jenkins credentials ID
-    }
-
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Install & Test') {
-            steps {
-                script {
-                    if (isUnix()) {
-                        sh "npm install && npm test"
-                    } else {
-                        bat "npm install && npm test"
-                    }
-                }
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    if (isUnix()) {
-                        sh "docker build -t ${DOCKER_IMAGE} ."
-                    } else {
-                        bat "docker build -t %DOCKER_IMAGE% ."
-                    }
-                }
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        if (isUnix()) {
-                            sh """
-                                echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                                docker push ${DOCKER_IMAGE}
-                            """
-                        } else {
-                            bat """
-                                echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
-                                docker push %DOCKER_IMAGE%
-                            """
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        always {
-            echo "Pipeline finished."
-        }
-    }
+agent any
+environment {
+DOCKER_IMAGE = "patiladi09/movie-app"
+KUBE_CONFIG = "C:\Users\Shree\.kube\jeJenkin\config" // Path to kubeconfig file
+}
+stages {
+stage('Checkout') {
+steps {
+git 'https://github.com/Patiladitya45/movie-app.git'
+}
+}
+stage('Build Docker Image') {
+steps {
+script {
+sh 'docker build -t $DOCKER_IMAGE .'
+}
+}
+}
+stage('Push to DockerHub') {
+steps {
+withCredentials([usernamePassword(credentialsId: 'dockerhub-cred',
+usernameVariable: 'DOCKER_USER', passwordVariable:
+'DOCKER_PASS')]) {
+sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
+sh "docker push $DOCKER_IMAGE"
+}
+}
+}
+stage('Deploy to Kubernetes') {
+steps {
+script {
+sh 'kubectl apply -f k8s/deployment.yaml'
+sh 'kubectl apply -f k8s/service.yaml'
+}
+}
+}
+}
 }
