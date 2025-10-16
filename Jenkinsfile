@@ -8,7 +8,7 @@ KUBE_CONFIG = "C:/Users/Shree/.kube/jeJenkin/config"
 stages {
 stage('Checkout') {
 steps {
-git 'https://github.com/Patiladitya45/movie-app.git'
+git branch: 'main', url: 'https://github.com/Patiladitya45/movie-app.git'
 }
 }
 stage('Build Docker Image') {
